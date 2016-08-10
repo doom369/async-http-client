@@ -110,7 +110,7 @@ public final class NettyRequestSender {
     private boolean isConnectDone(Request request, NettyResponseFuture<?> future) {
         return future != null //
                 && future.getNettyRequest() != null //
-                && future.getNettyRequest().getHttpRequest().getMethod() == HttpMethod.CONNECT //
+                && future.getNettyRequest().getHttpRequest().method() == HttpMethod.CONNECT //
                 && !request.getMethod().equals(CONNECT);
     }
 
@@ -220,7 +220,7 @@ public final class NettyRequestSender {
 
         if (LOGGER.isDebugEnabled()) {
             HttpRequest httpRequest = future.getNettyRequest().getHttpRequest();
-            LOGGER.debug("Using open Channel {} for {} '{}'", channel, httpRequest.getMethod(), httpRequest.getUri());
+            LOGGER.debug("Using open Channel {} for {} '{}'", channel, httpRequest.method(), httpRequest.uri());
         }
 
         // channelInactive might be called between isChannelValid and writeRequest
@@ -337,7 +337,7 @@ public final class NettyRequestSender {
             if (handler instanceof TransferCompletionHandler)
                 configureTransferAdapter(handler, httpRequest);
 
-            boolean writeBody = !future.isDontWriteBodyBecauseExpectContinue() && httpRequest.getMethod() != HttpMethod.CONNECT && nettyRequest.getBody() != null;
+            boolean writeBody = !future.isDontWriteBodyBecauseExpectContinue() && httpRequest.method() != HttpMethod.CONNECT && nettyRequest.getBody() != null;
 
             if (!future.isHeadersAlreadyWrittenOnContinue()) {
                 if (handler instanceof AsyncHandlerExtensions) {

@@ -43,7 +43,7 @@ public class HttpServer implements Closeable {
     @FunctionalInterface
     public interface HttpServletResponseConsumer {
 
-        public void apply(HttpServletResponse response) throws IOException, ServletException;
+        void apply(HttpServletResponse response) throws IOException, ServletException;
     }
 
     public HttpServer() {

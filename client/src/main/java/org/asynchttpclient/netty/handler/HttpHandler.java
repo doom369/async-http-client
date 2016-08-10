@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.LastHttpContent;
 
 import java.io.IOException;
@@ -70,14 +71,14 @@ public final class HttpHandler extends AsyncHttpClientHandler {
     }
 
     private void notifyHandler(Channel channel, NettyResponseFuture<?> future, HttpResponse response, AsyncHandler<?> handler, NettyResponseStatus status,
-            HttpRequest httpRequest, HttpResponseHeaders responseHeaders) throws IOException, Exception {
+            HttpRequest httpRequest, HttpResponseHeaders responseHeaders) throws Exception {
 
         boolean exit = exitAfterHandlingStatus(channel, future, response, handler, status, httpRequest) || //
                 exitAfterHandlingHeaders(channel, future, response, handler, responseHeaders, httpRequest) || //
                 exitAfterHandlingReactiveStreams(channel, future, response, handler, httpRequest);
 
         if (exit)
-            finishUpdate(future, channel, HttpHeaders.isTransferEncodingChunked(httpRequest) || HttpHeaders.isTransferEncodingChunked(response));
+            finishUpdate(future, channel, HttpUtil.isTransferEncodingChunked(httpRequest) || HttpUtil.isTransferEncodingChunked(response));
     }
 
     private boolean exitAfterHandlingStatus(//
@@ -85,7 +86,7 @@ public final class HttpHandler extends AsyncHttpClientHandler {
             NettyResponseFuture<?> future,//
             HttpResponse response, AsyncHandler<?> handler,//
             NettyResponseStatus status,//
-            HttpRequest httpRequest) throws IOException, Exception {
+            HttpRequest httpRequest) throws Exception {
         return !future.getAndSetStatusReceived(true) && handler.onStatusReceived(status) != State.CONTINUE;
     }
 
@@ -95,7 +96,7 @@ public final class HttpHandler extends AsyncHttpClientHandler {
             HttpResponse response,//
             AsyncHandler<?> handler,//
             HttpResponseHeaders responseHeaders,//
-            HttpRequest httpRequest) throws IOException, Exception {
+            HttpRequest httpRequest) throws Exception {
         return !response.headers().isEmpty() && handler.onHeadersReceived(responseHeaders) != State.CONTINUE;
     }
 
@@ -135,7 +136,7 @@ public final class HttpHandler extends AsyncHttpClientHandler {
     private void handleChunk(HttpContent chunk,//
             final Channel channel,//
             final NettyResponseFuture<?> future,//
-            AsyncHandler<?> handler) throws IOException, Exception {
+            AsyncHandler<?> handler) throws Exception {
 
         boolean interrupt = false;
         boolean last = chunk instanceof LastHttpContent;
@@ -175,7 +176,7 @@ public final class HttpHandler extends AsyncHttpClientHandler {
         try {
             if (e instanceof HttpObject) {
                 HttpObject object = (HttpObject) e;
-                Throwable t = object.getDecoderResult().cause();
+                Throwable t = object.decoderResult().cause();
                 if (t != null) {
                     readFailed(channel, future, t);
                     return;

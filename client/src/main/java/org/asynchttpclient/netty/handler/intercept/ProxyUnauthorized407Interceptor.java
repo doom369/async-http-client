@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpResponse;
 
 import java.util.List;
 
+import io.netty.handler.codec.http.HttpUtil;
 import org.asynchttpclient.Realm;
 import org.asynchttpclient.Realm.AuthScheme;
 import org.asynchttpclient.Request;
@@ -173,8 +174,8 @@ public class ProxyUnauthorized407Interceptor {
 
         LOGGER.debug("Sending proxy authentication to {}", request.getUri());
         if (future.isKeepAlive()//
-                && !HttpHeaders.isTransferEncodingChunked(httpRequest)//
-                && !HttpHeaders.isTransferEncodingChunked(response)) {
+                && !HttpUtil.isTransferEncodingChunked(httpRequest)//
+                && !HttpUtil.isTransferEncodingChunked(response)) {
             future.setConnectAllowed(true);
             future.setReuseChannel(true);
             requestSender.drainChannelAndExecuteNextRequest(channel, future, nextRequest);

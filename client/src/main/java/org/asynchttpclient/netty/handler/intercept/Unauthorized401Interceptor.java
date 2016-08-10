@@ -25,6 +25,7 @@ import io.netty.handler.codec.http.HttpResponse;
 
 import java.util.List;
 
+import io.netty.handler.codec.http.HttpUtil;
 import org.asynchttpclient.Realm;
 import org.asynchttpclient.Realm.AuthScheme;
 import org.asynchttpclient.Request;
@@ -171,8 +172,8 @@ public class Unauthorized401Interceptor {
 
         LOGGER.debug("Sending authentication to {}", request.getUri());
         if (future.isKeepAlive()//
-                && !HttpHeaders.isTransferEncodingChunked(httpRequest)//
-                && !HttpHeaders.isTransferEncodingChunked(response)) {
+                && !HttpUtil.isTransferEncodingChunked(httpRequest)//
+                && !HttpUtil.isTransferEncodingChunked(response)) {
             future.setReuseChannel(true);
             requestSender.drainChannelAndExecuteNextRequest(channel, future, nextRequest);
         } else {

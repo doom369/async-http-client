@@ -87,7 +87,7 @@ public final class WebSocketHandler extends AsyncHttpClientHandler {
         @Override
         public void call() throws Exception {
 
-            boolean validStatus = response.getStatus().equals(SWITCHING_PROTOCOLS);
+            boolean validStatus = response.status().equals(SWITCHING_PROTOCOLS);
             boolean validUpgrade = response.headers().get(HttpHeaders.Names.UPGRADE) != null;
             String connection = response.headers().get(HttpHeaders.Names.CONNECTION);
             if (connection == null)
@@ -168,7 +168,7 @@ public final class WebSocketHandler extends AsyncHttpClientHandler {
                         } finally {
                             frame.release();
                         }
-                    };
+                    }
                 };
                 handler.bufferFrame(bufferedFrame);
             }

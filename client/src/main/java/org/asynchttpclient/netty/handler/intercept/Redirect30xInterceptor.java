@@ -26,6 +26,7 @@ import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 
+import io.netty.handler.codec.http.HttpUtil;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.Realm;
 import org.asynchttpclient.Request;
@@ -142,7 +143,7 @@ public class Redirect30xInterceptor {
 
                 LOGGER.debug("Sending redirect to {}", newUri);
 
-                if (future.isKeepAlive() && !HttpHeaders.isTransferEncodingChunked(response)) {
+                if (future.isKeepAlive() && !HttpUtil.isTransferEncodingChunked(response)) {
 
                     if (sameBase) {
                         future.setReuseChannel(true);

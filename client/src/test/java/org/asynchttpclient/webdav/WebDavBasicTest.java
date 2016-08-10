@@ -75,7 +75,7 @@ public class WebDavBasicTest extends AbstractBasicTest {
     }
 
     @AfterClass(alwaysRun = true)
-    public void tearDownGlobal() throws InterruptedException, Exception {
+    public void tearDownGlobal() throws Exception {
         embedded.stop();
     }
 
@@ -85,7 +85,7 @@ public class WebDavBasicTest extends AbstractBasicTest {
 
     @AfterMethod(alwaysRun = true)
     // FIXME not sure that's threadsafe
-    public void clean() throws InterruptedException, Exception {
+    public void clean() throws Exception {
         try (AsyncHttpClient c = asyncHttpClient()) {
             c.executeRequest(delete(getTargetUrl())).get();
         }

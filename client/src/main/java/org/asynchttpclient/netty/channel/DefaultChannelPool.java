@@ -161,7 +161,7 @@ public final class DefaultChannelPool implements ChannelPool {
             return idleTimeoutChannels != null ? idleTimeoutChannels : Collections.<IdleChannel> emptyList();
         }
 
-        private final List<IdleChannel> closeChannels(List<IdleChannel> candidates) {
+        private List<IdleChannel> closeChannels(List<IdleChannel> candidates) {
 
             // lazy create, only if we hit a non-closeable channel
             List<IdleChannel> closedChannels = null;

@@ -17,7 +17,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.EmptyHttpHeaders;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,7 +62,7 @@ public class MultipartBodyTest {
         parts.add(new FilePart("filePart", getTestfile()));
         parts.add(new ByteArrayPart("baPart", "testMultiPart".getBytes(UTF_8), "application/test", UTF_8, "fileName"));
         parts.add(new StringPart("stringPart", "testString"));
-        return MultipartUtils.newMultipartBody(parts, HttpHeaders.EMPTY_HEADERS);
+        return MultipartUtils.newMultipartBody(parts, EmptyHttpHeaders.INSTANCE);
     }
 
     private long transferWithCopy(MultipartBody multipartBody) throws IOException {

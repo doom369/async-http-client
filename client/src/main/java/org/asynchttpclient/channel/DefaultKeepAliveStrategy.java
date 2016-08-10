@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 
+import io.netty.handler.codec.http.HttpUtil;
 import org.asynchttpclient.Request;
 
 /**
@@ -16,8 +17,8 @@ public class DefaultKeepAliveStrategy implements KeepAliveStrategy {
      */
     @Override
     public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
-        return HttpHeaders.isKeepAlive(response)//
-                && HttpHeaders.isKeepAlive(request)
+        return HttpUtil.isKeepAlive(response)//
+                && HttpUtil.isKeepAlive(request)
                 // support non standard Proxy-Connection
                 && !response.headers().contains("Proxy-Connection", HttpHeaders.Values.CLOSE, true);
     }

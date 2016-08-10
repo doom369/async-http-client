@@ -16,6 +16,8 @@ package org.asynchttpclient.netty;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static org.asynchttpclient.util.HttpUtils.*;
 import static org.asynchttpclient.util.MiscUtils.isNonEmpty;
+
+import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import java.io.ByteArrayInputStream;
@@ -117,7 +119,7 @@ public class NettyResponse implements Response {
 
     @Override
     public final HttpHeaders getHeaders() {
-        return headers != null ? headers.getHeaders() : HttpHeaders.EMPTY_HEADERS;
+        return headers != null ? headers.getHeaders() : EmptyHttpHeaders.INSTANCE;
     }
 
     @Override

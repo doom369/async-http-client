@@ -60,7 +60,7 @@ public class Realm {
 
     public enum AuthScheme {
 
-        BASIC, DIGEST, NTLM, SPNEGO, KERBEROS;
+        BASIC, DIGEST, NTLM, SPNEGO, KERBEROS
     }
 
     private Realm(AuthScheme scheme,//
