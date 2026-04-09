@@ -155,8 +155,8 @@ public final class ScramMessageParser {
             return new ServerFinalMessage(verifier, null);
         } else if (message.startsWith("e=")) {
             String rest = message.substring(2);
-            // Error text may contain commas, but extensions are comma-separated after the value.
-            // Per RFC 5802, error is a printable ASCII string without commas in practice.
+            // Per RFC 5802, error values are server-error-value tokens (no commas).
+            // Extensions follow after the first comma, if present.
             int commaIdx = rest.indexOf(',');
             String error = commaIdx >= 0 ? rest.substring(0, commaIdx) : rest;
             return new ServerFinalMessage(null, error);
