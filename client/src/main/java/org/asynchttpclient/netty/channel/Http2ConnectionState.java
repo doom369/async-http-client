@@ -97,6 +97,9 @@ public class Http2ConnectionState {
     private void drainPending() {
         while (!pendingOpeners.isEmpty() && !draining && activeStreams < maxConcurrentStreams) {
             PendingStreamOpen entry = pendingOpeners.poll();
+            if (entry == null) {
+                break;
+            }
             activeStreams++;
             entry.run();
         }
