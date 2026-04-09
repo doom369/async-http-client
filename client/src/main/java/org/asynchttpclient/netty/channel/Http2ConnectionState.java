@@ -17,85 +17,126 @@ package org.asynchttpclient.netty.channel;
 
 import io.netty.util.AttributeKey;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.function.Consumer;
 
 /**
  * Tracks per-connection HTTP/2 state: active stream count, max concurrent streams,
  * draining status (from GOAWAY), and pending stream openers.
+ * <p>
+ * All mutable state is protected by synchronization on {@code this} to prevent
+ * race conditions between stream acquisition, release, and pending opener management.
  */
 public class Http2ConnectionState {
 
     public static final AttributeKey<Http2ConnectionState> HTTP2_STATE_KEY =
             AttributeKey.valueOf("http2ConnectionState");
 
-    private final AtomicInteger activeStreams = new AtomicInteger(0);
-    private volatile int maxConcurrentStreams = Integer.MAX_VALUE;
-    private final AtomicBoolean draining = new AtomicBoolean(false);
-    private volatile int lastGoAwayStreamId = Integer.MAX_VALUE;
-    private final ConcurrentLinkedQueue<Runnable> pendingOpeners = new ConcurrentLinkedQueue<>();
+    /**
+     * Represents a pending stream open request that can either be run (when a slot opens)
+     * or failed (when the connection is draining).
+     */
+    public static class PendingStreamOpen {
+        private final Runnable opener;
+        private final Consumer<IOException> onFail;
+
+        public PendingStreamOpen(Runnable opener, Consumer<IOException> onFail) {
+            this.opener = opener;
+            this.onFail = onFail;
+        }
+
+        public void run() {
+            opener.run();
+        }
+
+        public void fail(IOException cause) {
+            onFail.accept(cause);
+        }
+    }
+
+    private int activeStreams;
+    private int maxConcurrentStreams = Integer.MAX_VALUE;
+    private boolean draining;
+    private int lastGoAwayStreamId = Integer.MAX_VALUE;
+    private final Queue<PendingStreamOpen> pendingOpeners = new ArrayDeque<>();
     private volatile Object partitionKey;
 
-    public boolean tryAcquireStream() {
-        if (draining.get()) {
+    public synchronized boolean tryAcquireStream() {
+        if (draining) {
             return false;
         }
-        while (true) {
-            int current = activeStreams.get();
-            if (current >= maxConcurrentStreams) {
-                return false;
-            }
-            if (activeStreams.compareAndSet(current, current + 1)) {
-                return true;
-            }
+        if (activeStreams >= maxConcurrentStreams) {
+            return false;
+        }
+        activeStreams++;
+        return true;
+    }
+
+    public synchronized void releaseStream() {
+        activeStreams--;
+        drainPending();
+    }
+
+    public synchronized void addPendingOpener(PendingStreamOpen entry) {
+        if (draining) {
+            entry.fail(new IOException("HTTP/2 connection is draining (GOAWAY received)"));
+            return;
+        }
+        pendingOpeners.add(entry);
+        drainPending();
+    }
+
+    /**
+     * Runs as many pending openers as stream slots allow.
+     * Must be called while holding the lock.
+     */
+    private void drainPending() {
+        while (!pendingOpeners.isEmpty() && !draining && activeStreams < maxConcurrentStreams) {
+            PendingStreamOpen entry = pendingOpeners.poll();
+            activeStreams++;
+            entry.run();
         }
     }
 
-    public void releaseStream() {
-        activeStreams.decrementAndGet();
-        // Try to dequeue and run a pending opener
-        Runnable pending = pendingOpeners.poll();
-        if (pending != null) {
-            pending.run();
-        }
-    }
-
-    public void addPendingOpener(Runnable opener) {
-        pendingOpeners.add(opener);
-        // Re-check in case a stream was released between the failed tryAcquire and this enqueue
-        if (tryAcquireStream()) {
-            Runnable dequeued = pendingOpeners.poll();
-            if (dequeued != null) {
-                dequeued.run();
-            } else {
-                releaseStream();
-            }
-        }
-    }
-
-    public void updateMaxConcurrentStreams(int maxConcurrentStreams) {
+    public synchronized void updateMaxConcurrentStreams(int maxConcurrentStreams) {
         this.maxConcurrentStreams = maxConcurrentStreams;
+        drainPending();
     }
 
-    public int getMaxConcurrentStreams() {
+    public synchronized int getMaxConcurrentStreams() {
         return maxConcurrentStreams;
     }
 
-    public int getActiveStreams() {
-        return activeStreams.get();
+    public synchronized int getActiveStreams() {
+        return activeStreams;
     }
 
-    public boolean isDraining() {
-        return draining.get();
+    public synchronized boolean isDraining() {
+        return draining;
     }
 
-    public void setDraining(int lastStreamId) {
+    public synchronized void setDraining(int lastStreamId) {
         this.lastGoAwayStreamId = lastStreamId;
-        this.draining.set(true);
+        this.draining = true;
     }
 
-    public int getLastGoAwayStreamId() {
+    /**
+     * Marks the connection as draining and returns all pending openers that were
+     * waiting for stream slots. The caller must fail each returned entry.
+     */
+    public synchronized List<PendingStreamOpen> setDrainingAndDrainPending(int lastStreamId) {
+        this.lastGoAwayStreamId = lastStreamId;
+        this.draining = true;
+        List<PendingStreamOpen> drained = new ArrayList<>(pendingOpeners);
+        pendingOpeners.clear();
+        return drained;
+    }
+
+    public synchronized int getLastGoAwayStreamId() {
         return lastGoAwayStreamId;
     }
 

@@ -494,14 +494,20 @@ public final class NettyRequestSender {
                 future.abort(new java.io.IOException("HTTP/2 connection is draining (GOAWAY received)"));
                 return;
             }
-            // Queue for later when a stream slot opens up
-            state.addPendingOpener(openStream);
+            // Queue for later when a stream slot opens up.
+            // Provide a fail callback so the future can be failed immediately on GOAWAY
+            // instead of waiting for request timeout.
+            state.addPendingOpener(new Http2ConnectionState.PendingStreamOpen(
+                    openStream,
+                    cause -> future.abort(cause)
+            ));
             return;
         }
         openStream.run();
     }
 
     private <T> void openHttp2Stream(NettyResponseFuture<T> future, Channel parentChannel) {
+        Http2ConnectionState state = parentChannel.attr(Http2ConnectionState.HTTP2_STATE_KEY).get();
         new Http2StreamChannelBootstrap(parentChannel)
                 .handler(new ChannelInitializer<Http2StreamChannel>() {
                     @Override
@@ -526,6 +532,7 @@ public final class NettyRequestSender {
                                 asyncHandler.onRequestSend(future.getNettyRequest());
                             } catch (Exception e) {
                                 LOGGER.error("onRequestSend crashed", e);
+                                releaseStreamSlot(state);
                                 abort(streamChannel, future, e);
                                 return;
                             }
@@ -538,12 +545,20 @@ public final class NettyRequestSender {
                             scheduleReadTimeout(future);
                         } catch (Exception e) {
                             LOGGER.error("Can't write HTTP/2 request", e);
+                            releaseStreamSlot(state);
                             abort(streamChannel, future, e);
                         }
                     } else {
+                        releaseStreamSlot(state);
                         abort(parentChannel, future, f.cause());
                     }
                 });
+    }
+
+    private void releaseStreamSlot(Http2ConnectionState state) {
+        if (state != null) {
+            state.releaseStream();
+        }
     }
 
     /**

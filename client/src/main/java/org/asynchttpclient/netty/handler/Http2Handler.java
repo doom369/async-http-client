@@ -213,13 +213,22 @@ public final class Http2Handler extends AsyncHttpClientHandler {
                 ? ((Http2StreamChannel) channel).parent()
                 : channel;
 
-        // Mark the connection as draining and remove from registry
+        // Mark the connection as draining, remove from registry, and fail pending openers
         Http2ConnectionState state = parentChannel.attr(Http2ConnectionState.HTTP2_STATE_KEY).get();
         if (state != null) {
-            state.setDraining(lastStreamId);
+            java.util.List<Http2ConnectionState.PendingStreamOpen> abandoned = state.setDrainingAndDrainPending(lastStreamId);
             Object partitionKey = state.getPartitionKey();
             if (partitionKey != null) {
                 channelManager.removeHttp2Connection(partitionKey, parentChannel);
+            }
+            // Fail all pending openers immediately so they can retry on a new connection
+            // instead of waiting for request timeout
+            if (!abandoned.isEmpty()) {
+                IOException goAwayException = new IOException("HTTP/2 connection GOAWAY received, error code: " + errorCode
+                        + ", lastStreamId: " + lastStreamId);
+                for (Http2ConnectionState.PendingStreamOpen pending : abandoned) {
+                    pending.fail(goAwayException);
+                }
             }
         }
 

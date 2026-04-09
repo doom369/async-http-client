@@ -726,16 +726,27 @@ public class ChannelManager {
                 if (msg instanceof Http2GoAwayFrame) {
                     Http2GoAwayFrame goAwayFrame = (Http2GoAwayFrame) msg;
                     int lastStreamId = goAwayFrame.lastStreamId();
+                    long errorCode = goAwayFrame.errorCode();
                     Http2ConnectionState connState = ctx.channel().attr(Http2ConnectionState.HTTP2_STATE_KEY).get();
+                    java.util.List<Http2ConnectionState.PendingStreamOpen> abandoned = java.util.Collections.emptyList();
                     if (connState != null) {
-                        connState.setDraining(lastStreamId);
+                        abandoned = connState.setDrainingAndDrainPending(lastStreamId);
                         Object pk = connState.getPartitionKey();
                         if (pk != null) {
                             removeHttp2Connection(pk, ctx.channel());
                         }
                     }
                     LOGGER.debug("HTTP/2 GOAWAY received on {}, lastStreamId={}, errorCode={}",
-                            ctx.channel(), lastStreamId, goAwayFrame.errorCode());
+                            ctx.channel(), lastStreamId, errorCode);
+                    // Fail all pending openers immediately so they can retry on a new connection
+                    if (!abandoned.isEmpty()) {
+                        java.io.IOException goAwayException = new java.io.IOException(
+                                "HTTP/2 connection GOAWAY received, error code: " + errorCode
+                                        + ", lastStreamId: " + lastStreamId);
+                        for (Http2ConnectionState.PendingStreamOpen pending : abandoned) {
+                            pending.fail(goAwayException);
+                        }
+                    }
                     // Close the connection when no more active streams
                     if (connState != null && connState.getActiveStreams() <= 0) {
                         closeChannel(ctx.channel());
