@@ -70,6 +70,10 @@ public class ScramContext {
      * @param maxIterationCount   maximum allowed iteration count for DoS protection
      */
     public void processServerFirst(String serverFirstMsg, int maxIterationCount) {
+        if (state != ScramState.CLIENT_FIRST_SENT) {
+            throw new ScramException("processServerFirst called in invalid state: " + state
+                    + " (expected CLIENT_FIRST_SENT)");
+        }
         this.serverFirstMessage = serverFirstMsg;
 
         ScramMessageParser.ServerFirstMessage parsed = ScramMessageParser.parseServerFirst(serverFirstMsg);
@@ -110,6 +114,10 @@ public class ScramContext {
      * @return the full client-final-message string
      */
     public String computeClientFinal() {
+        if (state != ScramState.SERVER_FIRST_RECEIVED) {
+            throw new ScramException("computeClientFinal called in invalid state: " + state
+                    + " (expected SERVER_FIRST_RECEIVED)");
+        }
         String fullNonce = requireNonNull(serverNonce, "serverNonce not set");
         String serverFirst = requireNonNull(serverFirstMessage, "serverFirstMessage not set");
         byte[] currentStoredKey = requireNonNull(storedKey, "storedKey not set");
@@ -135,6 +143,10 @@ public class ScramContext {
      * @return true if ServerSignature is valid, false otherwise
      */
     public boolean verifyServerFinal(String serverFinalMsg) {
+        if (state != ScramState.CLIENT_FINAL_SENT) {
+            throw new ScramException("verifyServerFinal called in invalid state: " + state
+                    + " (expected CLIENT_FINAL_SENT)");
+        }
         ScramMessageParser.ServerFinalMessage parsed = ScramMessageParser.parseServerFinal(serverFinalMsg);
 
         if (parsed.error != null) {

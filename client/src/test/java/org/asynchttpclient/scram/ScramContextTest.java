@@ -161,6 +161,30 @@ class ScramContextTest {
 
     // Helper methods
 
+    @Test
+    void testProcessServerFirst_invalidState() {
+        // processServerFirst should only be called in CLIENT_FIRST_SENT state
+        ScramContext ctx = createContextAtClientFinalSent();
+        String serverFirstMsg = "r=" + ctx.getServerNonce() + ",s=c2FsdA==,i=4096";
+        assertThrows(ScramException.class, () -> ctx.processServerFirst(serverFirstMsg, MAX_ITERATIONS));
+    }
+
+    @Test
+    void testComputeClientFinal_invalidState() {
+        // computeClientFinal should only be called in SERVER_FIRST_RECEIVED state
+        ScramContext ctx = new ScramContext(USERNAME, PASSWORD, REALM, "SCRAM-SHA-256");
+        // State is CLIENT_FIRST_SENT, not SERVER_FIRST_RECEIVED
+        assertThrows(ScramException.class, ctx::computeClientFinal);
+    }
+
+    @Test
+    void testVerifyServerFinal_invalidState() {
+        // verifyServerFinal should only be called in CLIENT_FINAL_SENT state
+        ScramContext ctx = new ScramContext(USERNAME, PASSWORD, REALM, "SCRAM-SHA-256");
+        // State is CLIENT_FIRST_SENT, not CLIENT_FINAL_SENT
+        assertThrows(ScramException.class, () -> ctx.verifyServerFinal("v=AAAA"));
+    }
+
     private ScramContext createContextAtClientFinalSent() {
         ScramContext ctx = new ScramContext(USERNAME, PASSWORD, REALM, "SCRAM-SHA-256");
         String clientNonce = ctx.getClientNonce();

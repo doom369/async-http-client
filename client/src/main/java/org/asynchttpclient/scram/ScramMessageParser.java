@@ -95,10 +95,19 @@ public final class ScramMessageParser {
         String[] parts = message.split(",");
         for (String part : parts) {
             if (part.startsWith("r=")) {
+                if (fullNonce != null) {
+                    throw new ScramException("Duplicate nonce (r=) in server-first-message");
+                }
                 fullNonce = part.substring(2);
             } else if (part.startsWith("s=")) {
+                if (saltBase64 != null) {
+                    throw new ScramException("Duplicate salt (s=) in server-first-message");
+                }
                 saltBase64 = part.substring(2);
             } else if (part.startsWith("i=")) {
+                if (iterationCount != -1) {
+                    throw new ScramException("Duplicate iteration count (i=) in server-first-message");
+                }
                 try {
                     iterationCount = Integer.parseInt(part.substring(2));
                 } catch (NumberFormatException e) {
@@ -133,13 +142,24 @@ public final class ScramMessageParser {
     }
 
     /**
-     * Parse a server-final-message (RFC 5802): {@code v=<verifier>} OR {@code e=<error>}
+     * Parse a server-final-message (RFC 5802 §7):
+     * {@code server-final-message = (server-error / verifier) ["," extensions]}
+     * Extensions after the verifier or error are tolerated per RFC 5802.
      */
     public static ServerFinalMessage parseServerFinal(String message) {
         if (message.startsWith("v=")) {
-            return new ServerFinalMessage(message.substring(2), null);
+            String rest = message.substring(2);
+            // Strip extensions: verifier ends at the first comma (base64 doesn't contain commas)
+            int commaIdx = rest.indexOf(',');
+            String verifier = commaIdx >= 0 ? rest.substring(0, commaIdx) : rest;
+            return new ServerFinalMessage(verifier, null);
         } else if (message.startsWith("e=")) {
-            return new ServerFinalMessage(null, message.substring(2));
+            String rest = message.substring(2);
+            // Error text may contain commas, but extensions are comma-separated after the value.
+            // Per RFC 5802, error is a printable ASCII string without commas in practice.
+            int commaIdx = rest.indexOf(',');
+            String error = commaIdx >= 0 ? rest.substring(0, commaIdx) : rest;
+            return new ServerFinalMessage(null, error);
         } else {
             throw new ScramException("Invalid server-final-message: must start with v= or e=");
         }

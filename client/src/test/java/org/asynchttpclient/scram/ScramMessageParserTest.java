@@ -100,6 +100,41 @@ class ScramMessageParserTest {
     }
 
     @Test
+    void testParseServerFinal_verifierWithExtensions() {
+        // RFC 5802 §7: server-final-message = (server-error / verifier) ["," extensions]
+        String message = "v=rmF9pqV8S7suAoZWja4dJRkFsKQ=,ext1=val1";
+        ScramMessageParser.ServerFinalMessage result = ScramMessageParser.parseServerFinal(message);
+        assertEquals("rmF9pqV8S7suAoZWja4dJRkFsKQ=", result.verifier);
+        assertNull(result.error);
+    }
+
+    @Test
+    void testParseServerFinal_errorWithExtensions() {
+        String message = "e=invalid-proof,ext1=val1";
+        ScramMessageParser.ServerFinalMessage result = ScramMessageParser.parseServerFinal(message);
+        assertNull(result.verifier);
+        assertEquals("invalid-proof", result.error);
+    }
+
+    @Test
+    void testParseServerFirst_duplicateNonce() {
+        assertThrows(ScramException.class, () ->
+                ScramMessageParser.parseServerFirst("r=nonce1,r=nonce2,s=c2FsdA==,i=4096"));
+    }
+
+    @Test
+    void testParseServerFirst_duplicateSalt() {
+        assertThrows(ScramException.class, () ->
+                ScramMessageParser.parseServerFirst("r=nonce1,s=c2FsdA==,s=YW5vdGhlcg==,i=4096"));
+    }
+
+    @Test
+    void testParseServerFirst_duplicateIterationCount() {
+        assertThrows(ScramException.class, () ->
+                ScramMessageParser.parseServerFirst("r=nonce1,s=c2FsdA==,i=4096,i=8192"));
+    }
+
+    @Test
     void testParseWwwAuthenticate_realmAndData() {
         String header = "SCRAM-SHA-256 realm=\"testrealm@example.com\", data=\"biwsbj11c2VyLHI9ck9wck5HZndFYmVSV2diTkVrcU8=\"";
         ScramMessageParser.ScramChallengeParams params = ScramMessageParser.parseWwwAuthenticateScram(header);
